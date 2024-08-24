@@ -1,5 +1,6 @@
 const userModel = require("../models/user");
 const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 
 const registerUser = async (req, res) => {
   try {
@@ -45,14 +46,37 @@ const loginUser = async (req, res) => {
     if (!isPasswordCorrect) {
       return res.status(403).send("incorrect password");
     }
+    res.clearCookie("auth_token", {
+      httpOnly: true,
+      domain: "localhost",
+      signed: true,
+      path: "/",
+    });
+    const token = jwt.sign(
+      { userId: existedUser._id },
+      process.env.JWT_SECRET_KEY,
+      {
+        expiresIn: "7d",
+      }
+    );
+    const expires = new Date();
+    expires.setDate(expires.getDate() + 7);
+    res.cookie("auth_token", token, {
+      path: "/",
+      domain: "localhost",
+      expires,
+      httpOnly: true,
+      signed: true,
+    });
     res.status(201).json({
       success: true,
       message: "login successful",
+      data: token,
     });
   } catch (error) {
     res.status(400).json({
       success: false,
-      message: error || "User has entered invalid information",
+      message: error.message || "User has entered invalid information",
     });
   }
 };
